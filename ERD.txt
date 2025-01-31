@@ -1,0 +1,64 @@
+# Modify this code to update the DB schema diagram.
+# To reset the sample schema, replace everything with
+# two dots ('..' - without quotes).
+
+# таблица пользователей
+users
+---
+user_id serial PK
+username text unique
+
+# таблица контактов, то как пользователи называют
+# друг друга, кто с кем знаком и т.д.
+contacts
+---
+id serial PK
+user_1 serial FK >- users.user_id
+user_2 serial FK >- users.user_id
+name varchar(255)
+
+# таблица чатов и их типы
+chats
+---
+chat_id serial PK
+title varchar(255)
+chat_type chat_type_enum
+
+participants
+---
+id PK serial
+chat_id serial FK >- chats.chat_id
+user_id serial FK >- users.user_id
+
+roles
+---
+id serial PK
+chat_id serial FK >- chats.chat_id
+user_id serial FK >- users.user_id
+role_type role_type_enum
+
+messages
+---
+message_id serial PK
+chat_id serial FK >- chats.chat_id
+message_text text
+
+voices
+---
+voice_id serial PK
+message_id serial FK >- messages.message_id
+media_url text
+waveform varchar(255) # 63 csv значения
+
+images
+---
+image_id serial PK
+message_id serial FK >- messages.message_id
+media_url text
+preview text # base64 картинка для предпросмотра
+
+files
+---
+file_id serial PK
+message_id serial FK >- messages.message_id
+media_url text
