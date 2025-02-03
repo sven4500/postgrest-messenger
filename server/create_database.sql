@@ -16,8 +16,6 @@ CREATE ROLE WEB_ANON NOLOGIN;
 
 CREATE ROLE AUTHENTICATOR NOINHERIT LOGIN PASSWORD 'mysecretpassword';
 
-GRANT USAGE ON SCHEMA PUBLIC TO WEB_ANON;
-
 GRANT WEB_ANON TO AUTHENTICATOR;
 
 -- создание базы данных
@@ -28,8 +26,8 @@ CREATE TYPE ROLE_TYPE_ENUM AS ENUM('Owner', 'Administrator', 'Participant');
 -- таблица пользователей
 CREATE TABLE USERS (
 	USER_ID SERIAL PRIMARY KEY,
-	PASSWORD VARCHAR(32),
-	USERNAME TEXT NOT NULL UNIQUE CHECK (USERNAME <> '')
+	USERNAME TEXT NOT NULL UNIQUE CHECK (USERNAME <> ''),
+	PASSWORD VARCHAR(32) NOT NULL
 );
 
 -- таблица контактов, то как пользователи называют друг друга, либо кто с кем знаком.
@@ -88,9 +86,18 @@ CREATE TABLE FILES (
 	MEDIA_URL TEXT NOT NULL CHECK (STARTS_WITH(MEDIA_URL, 'file://'))
 );
 
-GRANT
+-- выдать права
+GRANT USAGE ON SCHEMA PUBLIC TO WEB_ANON;
+
+-- нужно выдать ползователю права на последовательности иначе при вставке значения
+-- нужно будет явно указывать идентификаторы
+GRANT USAGE,
 SELECT
-	ON PUBLIC.USERS TO WEB_ANON;
+	ON ALL SEQUENCES IN SCHEMA PUBLIC TO WEB_ANON;
+
+GRANT ALL ON PUBLIC.USERS TO WEB_ANON;
+
+GRANT INSERT ON PUBLIC.USERS TO WEB_ANON;
 
 GRANT
 SELECT
