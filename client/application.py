@@ -1,34 +1,49 @@
-from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton)
-from PyQt5.QtGui import QFont
-import requests
+from PyQt5.QtWidgets import (QWidget, QPushButton, QGridLayout, QHBoxLayout, QLabel, QLineEdit)
+from dao import Dao
 
 
 class Application(QWidget):
-    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IndlYl9hbm9uIiwiaWF0IjoxNTE2MjM5MDIyfQ.xhFiZIcrzvpp8-KEBt__YwVwkt7H3ypt_rgOQx38Bxk"
-    url = "http://localhost:3000/users"
+    dao = Dao()
 
     def __init__(self):
         super().__init__()
-        self.init_ui()
 
-    def register_user(self):
-        headers = {"Content-Type": "application/json",
-                   "Authorization": "Bearer " + self.token}
-        data = '{"username": "noname5", "password": "password"}'
-        response = requests.post(self.url, headers=headers, data=data)
-        # print(response.json())
+        username_label = QLabel('Username', self)
+        self.username_edit = QLineEdit(self)
 
-    def init_ui(self):
-        QToolTip.setFont(QFont('SansSerif', 10))
+        password_label = QLabel('Password', self)
+        self.password_edit = QLineEdit(self)
+        self.password_edit.setEchoMode(QLineEdit.Password)
 
-        self.setToolTip('This is a <b>QWidget</b> widget')
+        register_button = QPushButton('Register', self)
+        register_button.resize(register_button.sizeHint())
+        register_button.clicked.connect(self.register)
 
-        btn = QPushButton('Button', self)
-        btn.setToolTip('This is a <b>QPushButton</b> widget')
-        btn.resize(btn.sizeHint())
-        btn.move(50, 50)
-        btn.clicked.connect(self.register_user)
+        login_button = QPushButton('Login', self)
+        login_button.resize(login_button.sizeHint())
+        login_button.clicked.connect(self.login)
 
+        hbox_layout = QHBoxLayout()
+        hbox_layout.addWidget(login_button)
+        hbox_layout.addWidget(register_button)
+
+        layout = QGridLayout(self)
+        layout.addWidget(username_label, 0, 0)
+        layout.addWidget(self.username_edit, 0, 1)
+        layout.addWidget(password_label, 1, 0)
+        layout.addWidget(self.password_edit, 1, 1)
+        layout.addLayout(hbox_layout, 2, 0, 1, 2)
+
+        self.setLayout(layout)
         self.setGeometry(300, 300, 300, 200)
-        self.setWindowTitle('Tooltips')
+        self.setWindowTitle('Postgres Messenger')
         self.show()
+
+    def register(self):
+        username = self.username_edit.text()
+        password = self.password_edit.text()
+        self.dao.register(username, password)
+
+    @staticmethod
+    def login(self):
+        print("not implemented")
