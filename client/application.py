@@ -44,6 +44,7 @@ class Application(QWidget):
         password = self.password_edit.text()
         self.dao.register(username, password)
 
-    @staticmethod
     def login(self):
-        print("not implemented")
+        username = self.username_edit.text()
+        password = self.password_edit.text()
+        self.dao.login(username, password)
