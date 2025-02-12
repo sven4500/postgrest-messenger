@@ -4,6 +4,7 @@ CREATE TYPE CHAT_TYPE_ENUM AS ENUM('Private', 'Group', 'Channel');
 CREATE TYPE ROLE_TYPE_ENUM AS ENUM('Owner', 'Administrator', 'Participant');
 
 -- таблица пользователей
+-- пароль 32 символа md5 хэш
 CREATE TABLE USERS (
 	USER_ID SERIAL PRIMARY KEY,
 	USERNAME TEXT NOT NULL UNIQUE CHECK (USERNAME <> ''),
