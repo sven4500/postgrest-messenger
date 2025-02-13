@@ -36,7 +36,7 @@ class Dao:
 
     def login(self, username, password):
         users_list = self.list_users()
-        for _username, _password in users_list:
-            if username == _username:
+        for user in users_list:
+            if username == user['username']:
                 return 1
         return 0
