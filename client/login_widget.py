@@ -1,12 +1,15 @@
 from PyQt5.QtWidgets import (QWidget, QPushButton, QGridLayout, QHBoxLayout, QLabel, QLineEdit)
+from PyQt5 import QtCore
 from dao import Dao
 
 
 class LoginWidget(QWidget):
     dao = Dao()
+    login_success = QtCore.pyqtSignal()
+    register_success = QtCore.pyqtSignal()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent):
+        super().__init__(parent)
 
         username_label = QLabel('Username', self)
         self.username_edit = QLineEdit(self)
@@ -40,6 +43,7 @@ class LoginWidget(QWidget):
         username = self.username_edit.text()
         password = self.password_edit.text()
         self.dao.register(username, password)
+        self.register_sucess.emit()
 
     def login(self):
         username = self.username_edit.text()
@@ -48,3 +52,4 @@ class LoginWidget(QWidget):
             print('login failure')
             return
         print('login success')
+        self.login_success.emit()
