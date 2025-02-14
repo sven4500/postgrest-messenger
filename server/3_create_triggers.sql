@@ -19,23 +19,6 @@ OR
 UPDATE ON VOICES FOR EACH ROW
 EXECUTE FUNCTION A_RESTRICT_VOICES ();
 
--- запретить пользователю менять миниматюры
-CREATE
-OR REPLACE FUNCTION A_RESTRICT_IMAGES () RETURNS TRIGGER AS $$
-begin
-	if old.thumbnail is distinct from new.thumbnail then
-		raise exception 'Thumbnails are formed automatically';
-	end if;
-	return new;
-end;
-$$ LANGUAGE PLPGSQL;
-
-CREATE
-OR REPLACE TRIGGER A_RESTRICT_IMAGES_TRIGGER BEFORE INSERT
-OR
-UPDATE ON IMAGES FOR EACH ROW
-EXECUTE FUNCTION A_RESTRICT_IMAGES ();
-
 -- триггер "вычисляет" и добавляет вейвформу к записи голосового сообщения
 -- (в текущем варианте случайные значения)
 CREATE
@@ -58,6 +41,23 @@ CREATE
 OR REPLACE TRIGGER B_MAKE_WAVEFORM_TRIGGER BEFORE INSERT ON VOICES FOR EACH ROW
 EXECUTE FUNCTION B_MAKE_WAVEFORM ();
 
+-- запретить пользователю менять миниматюры
+CREATE
+OR REPLACE FUNCTION A_RESTRICT_IMAGES () RETURNS TRIGGER AS $$
+begin
+	if old.thumbnail is distinct from new.thumbnail then
+		raise exception 'Thumbnails are formed automatically';
+	end if;
+	return new;
+end;
+$$ LANGUAGE PLPGSQL;
+
+CREATE
+OR REPLACE TRIGGER A_RESTRICT_IMAGES_TRIGGER BEFORE INSERT
+OR
+UPDATE ON IMAGES FOR EACH ROW
+EXECUTE FUNCTION A_RESTRICT_IMAGES ();
+
 -- триггер добавляет картинку для предпросмотра изображения
 -- в данном варианте заглушка
 -- на этапи всавки строки, файл уже должен быть загружен на файловый сервер
@@ -75,3 +75,21 @@ $$ LANGUAGE PLPGSQL;
 CREATE
 OR REPLACE TRIGGER B_MAKE_THUMBNAIL_TRIGGER BEFORE INSERT ON IMAGES FOR EACH ROW
 EXECUTE FUNCTION B_MAKE_THUMBNAIL ();
+
+-- триггеры для сообщений
+CREATE
+OR REPLACE FUNCTION A_UPDATE_MODIFIED_AT () RETURNS TRIGGER AS $$
+begin
+	if old.modified_at is distinct from new.modified_at then
+		raise exception 'Modified time is assigned automatically';
+	end if;
+	new.modified_at = now();
+	return new;
+end;
+$$ LANGUAGE PLPGSQL;
+
+CREATE
+OR REPLACE TRIGGER A_UPDATE_MODIFIED_AT_TRIGGER BEFORE INSERT
+OR
+UPDATE ON MESSAGES FOR EACH ROW
+EXECUTE FUNCTION A_UPDATE_MODIFIED_AT ();
