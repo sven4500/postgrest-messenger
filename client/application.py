@@ -14,7 +14,7 @@ class Application(QMainWindow):
 
         self.login_widget = LoginWidget(self)
         self.login_widget.login_success.connect(self.goto_thread)
-        self.login_widget.login_success.connect(self.goto_thread)
+        self.login_widget.register_success.connect(self.goto_thread)
         self.setCentralWidget(self.login_widget)
 
         self.thread_widget = ThreadWidget(None)
@@ -24,5 +24,6 @@ class Application(QMainWindow):
         self.show()
 
     def goto_thread(self):
-        self.login_widget.hide()
+        # self.login_widget.hide()
+        # self.setCentralWidget(self.thread_widget)
         self.thread_widget.show()
