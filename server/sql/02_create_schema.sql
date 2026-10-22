@@ -1,4 +1,4 @@
-﻿-- создание типов перечисления для базы
+-- создание типов перечисления для базы
 CREATE TYPE CHAT_TYPE_ENUM AS ENUM('Private', 'Group', 'Channel');
 
 CREATE TYPE ROLE_TYPE_ENUM AS ENUM('Owner', 'Administrator', 'Participant');
