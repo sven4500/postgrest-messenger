@@ -42,8 +42,8 @@ class LoginWidget(QWidget):
     def register(self):
         username = self.username_edit.text()
         password = self.password_edit.text()
-        self.dao.register(username, password)
-        self.register_success.emit()
+        if self.dao.register(username, password):
+            self.register_success.emit()
 
     def login(self):
         username = self.username_edit.text()

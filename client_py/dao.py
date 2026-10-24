@@ -1,5 +1,4 @@
 import requests
-import hashlib
 
 
 class Dao:
@@ -10,14 +9,13 @@ class Dao:
         super().__init__()
 
     def register(self, username, password):
-        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + self.token}
-        # https://stackoverflow.com/questions/61269993/getting-a-key-error-while-formatting-a-stringified-dictionary-in-python
-        # {{ экранирование от {}
-        data = '{{"username": "{0}", "password": "{1}"}}'.format(username, hashlib.md5(password.encode()).hexdigest())
-        print(data)
+        headers = {"Authorization": "Bearer " + self.token}
         try:
-            response = requests.post("http://localhost:3000/users_public", headers=headers, data=data)
-            print(response.json())
+            response = requests.post("http://localhost:3000/rpc/register", headers=headers,
+                                     json={"username": username, "password": password})
+            if not response.ok:
+                print(response.text)
+                return False
             self.username = username
             return True
         except Exception as e:

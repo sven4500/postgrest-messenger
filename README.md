@@ -166,9 +166,16 @@ erDiagram
 
 Сообщение `Cannot decode byte '\xc2'` при запуске PostgREST означает, что Postgres отклонил подключение (неверный пароль в `db-uri` или не создана роль `authenticator`).
 
-### Запуск клиентского приложения
+### Запуск клиентского приложения (Python)
 
-todo...
+1. Установить необходимые зависимости:
+
+```cmd
+pip install PyQt5
+pip install requests
+```
+
+2. запустить приложение `python .\client_py\main.py`
 
 ## Возможные улучшения
 

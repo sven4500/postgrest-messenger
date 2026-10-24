@@ -3,8 +3,9 @@
 -- postgres вызывает триггеры в алфаыитном порядке
 -- https://dba.stackexchange.com/questions/12581/how-to-specify-trigger-execution-order-under-postgresql
 -- https://stackoverflow.com/questions/15411735/postgresql-restrict-update-on-specific-columns-read-only
-CREATE
-OR REPLACE FUNCTION A_RESTRICT_VOICES () RETURNS TRIGGER AS $$
+CREATE EXTENSION IF NOT EXISTS PGCRYPTO;
+
+CREATE OR REPLACE FUNCTION A_RESTRICT_VOICES () RETURNS TRIGGER AS $$
 begin
 	if old.waveform is distinct from new.waveform then
 		raise exception 'Waveforms are formed automatically';
@@ -13,16 +14,13 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE
-OR REPLACE TRIGGER A_RESTRICT_VOICES_TRIGGER BEFORE INSERT
-OR
-UPDATE ON VOICES FOR EACH ROW
+CREATE OR REPLACE TRIGGER A_RESTRICT_VOICES_TRIGGER
+BEFORE INSERT OR UPDATE ON VOICES FOR EACH ROW
 EXECUTE FUNCTION A_RESTRICT_VOICES ();
 
 -- триггер "вычисляет" и добавляет вейвформу к записи голосового сообщения
 -- (в текущем варианте случайные значения)
-CREATE
-OR REPLACE FUNCTION B_MAKE_WAVEFORM () RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION B_MAKE_WAVEFORM () RETURNS TRIGGER AS $$
 declare
 	var_waveform varchar(255) default ''; -- default иначе NULL
 begin
@@ -37,13 +35,12 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE
-OR REPLACE TRIGGER B_MAKE_WAVEFORM_TRIGGER BEFORE INSERT ON VOICES FOR EACH ROW
+CREATE OR REPLACE TRIGGER B_MAKE_WAVEFORM_TRIGGER
+BEFORE INSERT ON VOICES FOR EACH ROW
 EXECUTE FUNCTION B_MAKE_WAVEFORM ();
 
 -- запретить пользователю менять миниматюры
-CREATE
-OR REPLACE FUNCTION A_RESTRICT_IMAGES () RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION A_RESTRICT_IMAGES () RETURNS TRIGGER AS $$
 begin
 	if old.thumbnail is distinct from new.thumbnail then
 		raise exception 'Thumbnails are formed automatically';
@@ -52,18 +49,15 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE
-OR REPLACE TRIGGER A_RESTRICT_IMAGES_TRIGGER BEFORE INSERT
-OR
-UPDATE ON IMAGES FOR EACH ROW
+CREATE OR REPLACE TRIGGER A_RESTRICT_IMAGES_TRIGGER
+BEFORE INSERT OR UPDATE ON IMAGES FOR EACH ROW
 EXECUTE FUNCTION A_RESTRICT_IMAGES ();
 
 -- триггер добавляет картинку для предпросмотра изображения
 -- в данном варианте заглушка
 -- на этапи всавки строки, файл уже должен быть загружен на файловый сервер
 -- https://gist.github.com/ondrek/7413434
-CREATE
-OR REPLACE FUNCTION B_MAKE_THUMBNAIL () RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION B_MAKE_THUMBNAIL () RETURNS TRIGGER AS $$
 declare
 	var_image text default 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 begin
@@ -72,13 +66,12 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE
-OR REPLACE TRIGGER B_MAKE_THUMBNAIL_TRIGGER BEFORE INSERT ON IMAGES FOR EACH ROW
+CREATE OR REPLACE TRIGGER B_MAKE_THUMBNAIL_TRIGGER
+BEFORE INSERT ON IMAGES FOR EACH ROW
 EXECUTE FUNCTION B_MAKE_THUMBNAIL ();
 
 -- триггеры для сообщений
-CREATE
-OR REPLACE FUNCTION A_UPDATE_MODIFIED_AT () RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION A_UPDATE_MODIFIED_AT () RETURNS TRIGGER AS $$
 begin
 	if old.modified_at is distinct from new.modified_at then
 		raise exception 'Modified time is assigned automatically';
@@ -88,8 +81,20 @@ begin
 end;
 $$ LANGUAGE PLPGSQL;
 
-CREATE
-OR REPLACE TRIGGER A_UPDATE_MODIFIED_AT_TRIGGER BEFORE INSERT
-OR
-UPDATE ON MESSAGES FOR EACH ROW
+CREATE OR REPLACE TRIGGER A_UPDATE_MODIFIED_AT_TRIGGER
+BEFORE INSERT OR UPDATE ON MESSAGES FOR EACH ROW
 EXECUTE FUNCTION A_UPDATE_MODIFIED_AT ();
+
+-- registration goes only through rpc/register; web_anon has no direct access to USERS
+CREATE OR REPLACE FUNCTION REGISTER (USERNAME TEXT, PASSWORD TEXT) RETURNS VOID LANGUAGE PLPGSQL SECURITY DEFINER
+SET
+	SEARCH_PATH = PUBLIC,
+	PG_TEMP AS $$
+begin
+	if length(register.password) < 8 then
+		raise exception 'Password must be at least 8 characters';
+	end if;
+	insert into users (username, password)
+	values (register.username, crypt(register.password, gen_salt('bf')));
+end;
+$$;

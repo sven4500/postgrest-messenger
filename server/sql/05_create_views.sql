@@ -4,10 +4,14 @@
 -- при этом те столбцы которые пользователю не разрешено задавать
 -- самостоятельно (например время сообщения, или вейвформу)
 -- отслеживаются триггерами
-CREATE OR REPLACE VIEW USERS_PUBLIC AS
+--
+-- CREATE OR REPLACE can't remove column from an existing view, DROP instead
+DROP VIEW IF EXISTS USERS_PUBLIC;
+
+-- don't expose PASSWORD
+CREATE VIEW USERS_PUBLIC AS
 SELECT
-	USERNAME,
-	PASSWORD
+	USERNAME
 FROM
 	USERS;
 
