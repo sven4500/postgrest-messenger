@@ -26,7 +26,7 @@ class Application(QMainWindow):
         self.thread_widget = None
 
         self.setGeometry(300, 300, 300, 200)
-        self.setWindowTitle('Postgres Messenger')
+        self.setWindowTitle('Postgres Messenger — Login')
         self.show()
 
     def goto_thread(self):
@@ -39,5 +39,5 @@ class Application(QMainWindow):
             if chat_id is None:
                 print('cannot find or create chat')
                 return
-            self.thread_widget = ThreadWidget(self.dao, chat_id, None)
+            self.thread_widget = ThreadWidget(self.dao, chat_id, self.chat_title, None)
         self.thread_widget.show()

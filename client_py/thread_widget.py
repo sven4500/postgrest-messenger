@@ -3,10 +3,13 @@ from PyQt5.QtGui import (QColor, QPalette, QColorConstants)
 
 
 class ThreadWidget(QWidget):
-    def __init__(self, dao, chat_id, parent):
+    def __init__(self, dao, chat_id, chat_title, parent):
         super().__init__(parent)
         self.dao = dao
         self.chat_id = chat_id
+
+        # название чата и имя пользователя, чтобы различать окна нескольких клиентов
+        self.setWindowTitle('{0} ({1}) — Postgres Messenger'.format(chat_title, self.dao.username))
 
         self.list_widget = QListWidget(self)
         self.populate_list()
