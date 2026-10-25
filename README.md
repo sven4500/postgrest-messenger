@@ -16,44 +16,44 @@
 
 ```mermaid
 erDiagram
-    %% таблица пользователей
+    %% таблица пользователей, пароль хранится как bcrypt-хэш
     users {
         serial user_id PK
         text username UK
+        text password "bcrypt-хэш"
     }
 
     %% таблица контактов, то как пользователи называют
     %% друг друга, кто с кем знаком и т.д.
     contacts {
-        serial id PK
-        serial user_1 FK
-        serial user_2 FK
-        varchar(255) name
+        serial user_1 PK, FK
+        serial user_2 PK, FK
+        varchar(255) nickname
     }
 
     %% таблица чатов и их типы
     chats {
         serial chat_id PK
         varchar(255) title
-        chat_type_enum chat_type
+        chat_type_enum chat_type "Private, Group, Channel"
     }
 
     participants {
-        serial id PK
-        serial chat_id FK
-        serial user_id FK
+        serial chat_id PK, FK
+        serial user_id PK, FK
     }
 
     roles {
-        serial id PK
-        serial chat_id FK
-        serial user_id FK
-        role_type_enum role_type
+        serial chat_id PK, FK
+        serial user_id PK, FK
+        role_type_enum role_type "Owner, Administrator, Participant"
     }
 
     messages {
         serial message_id PK
         serial chat_id FK
+        timestamp created_at
+        timestamp modified_at "выставляется триггером"
         text message_text
     }
 
@@ -61,14 +61,14 @@ erDiagram
         serial voice_id PK
         serial message_id FK
         text media_url
-        varchar(255) waveform "63 csv значения"
+        varchar(255) waveform "csv значения, формируется триггером"
     }
 
     images {
         serial image_id PK
         serial message_id FK
         text media_url
-        text preview "base64 картинка для предпросмотра"
+        text thumbnail "base64 картинка для предпросмотра"
     }
 
     files {
@@ -109,7 +109,7 @@ erDiagram
 
 `Contacts` todo...
 
-`Roles` todo...
+`Roles` роли пользователей в чатах (`Owner`, `Administrator`, `Participant`). Сейчас используется только `Owner`: функция `rpc/create_chat` назначает создателя чата владельцем.
 
 ## Настройка окружения (Windows)
 
@@ -147,7 +147,7 @@ erDiagram
    psql -h localhost -U postgres -d Messenger -f .\server\sql\06_create_roles.sql
    ```
 
-Запуск последнего скрипта `06_create_roles.sql` особенно важен, т.к. без настройки ролей PostgREST не сможет связаться с БД. В этом скрипте задаётся пароль для доступа со стороны PostgREST, который дальше используется в конфигурационном файле `server\postgrest.conf` через ключи `db-uri` и `db-anon-role`.
+Запуск последнего скрипта `06_create_roles.sql` особенно важен, т.к. без настройки ролей PostgREST не сможет связаться с БД. Скрипт создаёт роли `authenticator`, `web_anon` и `web_user` (см. [Роли и права](#роли-и-права)), выдаёт им права и задаёт ключ подписи JWT-токенов в настройке БД `app.jwt_secret`. Пароль роли `authenticator` используется в `server\postgrest.conf` в ключе `db-uri`, роль `web_anon` указана в ключе `db-anon-role`. Скрипт можно запускать повторно, после этого PostgREST нужно перезапустить.
 
 `01_drop_schema.sql` можно использовать для быстрого сброса схемы или для повторного развёртывания. **Внимание! Этот скрипт уничтожает все данные относящиеся к БД Messenger.**
 
@@ -183,6 +183,34 @@ pip install requests
 
 После входа клиент ищет канал `Test channel` и пишет в него, если канала ещё нет, клиент создаёт его функцией `rpc/create_chat`. Функция создаёт чат, добавляет участников и назначает создателя (`user_id` из токена) владельцем (`Owner`).
 
+## Роли и права
+
+PostgREST подключается к БД под ролью `authenticator` и для каждого запроса переключается (`SET ROLE`) на роль из JWT-токена, а для запросов без токена на роль `web_anon`. Права ролей задаёт скрипт `06_create_roles.sql`.
+
+| Роль | Назначение | Права |
+|---|---|---|
+| `authenticator` | подключение PostgREST к БД (`LOGIN`, `NOINHERIT`) | собственных прав на данные нет, может только переключаться на `web_anon` и `web_user` |
+| `web_anon` | анонимный пользователь, запрос без токена | чтение `users_public`, вызов `rpc/register` и `rpc/login` |
+| `web_user` | пользователь вошедший через `rpc/login` | чтение `users_public` и `chats`, чтение и отправка сообщений через `messages_public`, вызов `rpc/create_chat` |
+
+Таблицы напрямую ролям `web_anon` и `web_user` недоступны (кроме чтения `chats`), работа с данными идёт через представления (`*_public`) и функции. Функции `register`, `login` и `create_chat` объявлены как `SECURITY DEFINER` и выполняются с правами владельца, поэтому могут, например, записать пользователя в таблицу `users`, к которой у вызывающей роли доступа нет. Право вызова всех остальных функций схемы, включая функции расширения `pgcrypto`, отозвано, иначе PostgREST открыл бы их как `rpc/...`.
+
+## API
+
+PostgREST автоматически создаёт HTTP API по объектам схемы `public`: представления и таблицы доступны по адресу `/<имя>`, функции по адресу `/rpc/<имя>`. Ниже запросы которые использует клиент (сервер по умолчанию `http://localhost:3000`).
+
+| Запрос | Роль | Описание |
+|---|---|---|
+| `POST /rpc/register` | `web_anon` | регистрация, тело `{"username": "...", "password": "..."}`, пароль не короче 8 символов |
+| `POST /rpc/login` | `web_anon` | вход, тело как у `register`, ответ `{"token": "<JWT>"}`, при неверном имени или пароле HTTP 403 |
+| `GET /users_public` | `web_anon`, `web_user` | список имён пользователей |
+| `GET /chats?title=eq.<название>&chat_type=eq.Channel` | `web_user` | поиск чата по названию и типу |
+| `POST /rpc/create_chat` | `web_user` | создание чата, тело `{"title": "...", "chat_type": "Channel", "usernames": []}`, ответ идентификатор чата |
+| `GET /messages_public?chat_id=eq.<id>&order=created_at.asc` | `web_user` | сообщения чата, отсортированные по времени |
+| `POST /messages_public` | `web_user` | отправка сообщения, тело `{"chat_id": <id>, "message_text": "..."}` |
+
+Запросы от имени `web_user` передают токен в заголовке `Authorization: Bearer <токен>`.
+
 ## Секреты
 
 Проект содержит несколько «секретов», которые используются только в демонстрационных целях. В реальной системе их необходимо заменить.
@@ -204,3 +232,6 @@ pip install requests
 
 3. Таблица `Requests` принятых заявок на вступление в чат. Возможно таблицу можно использовать в качестве ограничения на отправку сообщений? Нет приглашения - нельзя добавить сообщения в базу.
 
+## Лицензия
+
+Проект распространяется под лицензией MIT, см. файл [LICENSE](LICENSE).
