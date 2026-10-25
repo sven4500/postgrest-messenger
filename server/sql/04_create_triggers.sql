@@ -141,3 +141,45 @@ begin
 	), current_setting('app.jwt_secret')));
 end;
 $$;
+
+-- создание чата через rpc/create_chat, возвращает идентификатор нового чата;
+-- создатель берётся из JWT-токена (user_id), становится участником и владельцем (Owner),
+-- usernames — остальные участники, в личном чате (Private) должен быть ровно один
+CREATE OR REPLACE FUNCTION CREATE_CHAT (TITLE TEXT, CHAT_TYPE CHAT_TYPE_ENUM, USERNAMES TEXT[] DEFAULT '{}') RETURNS INTEGER LANGUAGE PLPGSQL SECURITY DEFINER
+SET
+	SEARCH_PATH = PUBLIC,
+	PG_TEMP AS $$
+declare
+	var_user_id integer;
+	var_chat_id integer;
+	var_count integer;
+begin
+	var_user_id = current_setting('request.jwt.claims', true)::json ->> 'user_id';
+	if var_user_id is null then
+		raise exception 'Login required' using errcode = 'insufficient_privilege';
+	end if;
+
+	select count(*) into var_count from users
+	where users.username = any (create_chat.usernames) and users.user_id <> var_user_id;
+	if var_count <> cardinality(array(select distinct unnest(create_chat.usernames))) then
+		raise exception 'Unknown username or chat with yourself';
+	end if;
+	if create_chat.chat_type = 'Private' and var_count <> 1 then
+		raise exception 'Private chat must have exactly one other participant';
+	end if;
+
+	insert into chats (title, chat_type)
+	values (create_chat.title, create_chat.chat_type)
+	returning chat_id into var_chat_id;
+
+	insert into participants (chat_id, user_id)
+	select var_chat_id, var_user_id
+	union
+	select var_chat_id, users.user_id from users where users.username = any (create_chat.usernames);
+
+	insert into roles (chat_id, user_id, role_type)
+	values (var_chat_id, var_user_id, 'Owner');
+
+	return var_chat_id;
+end;
+$$;

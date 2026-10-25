@@ -1,4 +1,5 @@
 import requests
+from urllib.parse import urlencode, quote
 
 
 class Dao:
@@ -50,6 +51,34 @@ class Dao:
             print(e)
             return False
 
+    def find_chat(self, title, chat_type):
+        # первый чат с таким названием и типом, quote кодирует пробел как %20
+        params = urlencode({"title": "eq." + title, "chat_type": "eq." + chat_type,
+                            "order": "chat_id.asc", "limit": 1}, quote_via=quote)
+        try:
+            response = requests.get(self.url + "/chats", headers=self.headers(), params=params)
+            if not response.ok:
+                print(response.text)
+                return None
+            chats = response.json()
+            return chats[0]['chat_id'] if chats else None
+        except Exception as e:
+            print(e)
+            return None
+
+    def create_chat(self, title, chat_type, usernames=()):
+        # возвращает идентификатор нового чата
+        try:
+            response = requests.post(self.url + "/rpc/create_chat", headers=self.headers(),
+                                     json={"title": title, "chat_type": chat_type, "usernames": list(usernames)})
+            if not response.ok:
+                print(response.text)
+                return None
+            return response.json()
+        except Exception as e:
+            print(e)
+            return None
+
     def send_message(self, chat_id, text):
         try:
             response = requests.post(self.url + "/messages_public", headers=self.headers(),
@@ -64,7 +93,8 @@ class Dao:
 
     def list_messages(self, chat_id):
         try:
-            response = requests.get(self.url + "/messages_public", headers=self.headers())
+            params = {"chat_id": "eq." + str(chat_id), "order": "created_at.asc"}
+            response = requests.get(self.url + "/messages_public", headers=self.headers(), params=params)
             if not response.ok:
                 print(response.text)
                 return []

@@ -3,11 +3,10 @@ from PyQt5.QtGui import (QColor, QPalette, QColorConstants)
 
 
 class ThreadWidget(QWidget):
-    chat_id = 1
-
-    def __init__(self, dao, parent):
+    def __init__(self, dao, chat_id, parent):
         super().__init__(parent)
         self.dao = dao
+        self.chat_id = chat_id
 
         self.list_widget = QListWidget(self)
         self.populate_list()

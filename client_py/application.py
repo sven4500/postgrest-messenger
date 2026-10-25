@@ -7,6 +7,10 @@ from thread_widget import ThreadWidget
 # https://www.pythonguis.com/tutorials/pyqt-signals-slots-events/
 # https://gist.github.com/MalloyDelacroix/2c509d6bcad35c7e35b1851dfc32d161
 class Application(QMainWindow):
+    # канал, в который пишут все пользователи клиента; создаётся первым вошедшим пользователем
+    chat_title = 'Test channel'
+    chat_type = 'Channel'
+
     def __init__(self):
         super().__init__()
 
@@ -29,5 +33,11 @@ class Application(QMainWindow):
         # self.login_widget.hide()
         # self.setCentralWidget(self.thread_widget)
         if self.thread_widget is None:
-            self.thread_widget = ThreadWidget(self.dao, None)
+            chat_id = self.dao.find_chat(self.chat_title, self.chat_type)
+            if chat_id is None:
+                chat_id = self.dao.create_chat(self.chat_title, self.chat_type)
+            if chat_id is None:
+                print('cannot find or create chat')
+                return
+            self.thread_widget = ThreadWidget(self.dao, chat_id, None)
         self.thread_widget.show()
