@@ -95,6 +95,6 @@ begin
 		raise exception 'Password must be at least 8 characters';
 	end if;
 	insert into users (username, password)
-	values (register.username, crypt(register.password, gen_salt('bf')));
+	values (register.username, crypt(register.password, gen_salt('bf', 12)));
 end;
 $$;
