@@ -2,45 +2,45 @@
 # To reset the sample schema, replace everything with
 # two dots ('..' - without quotes).
 
-# таблица пользователей
+# таблица пользователей, пароль хранится как bcrypt-хэш
 users
 ---
 user_id serial PK
 username text unique
+password text # bcrypt-хэш
 
 # таблица контактов, то как пользователи называют
 # друг друга, кто с кем знаком и т.д.
 contacts
 ---
-id serial PK
-user_1 serial FK >- users.user_id
-user_2 serial FK >- users.user_id
-name varchar(255)
+user_1 serial PK FK >- users.user_id
+user_2 serial PK FK >- users.user_id
+nickname varchar(255)
 
 # таблица чатов и их типы
 chats
 ---
 chat_id serial PK
 title varchar(255)
-chat_type chat_type_enum
+chat_type chat_type_enum # Private, Group, Channel
 
 participants
 ---
-id PK serial
-chat_id serial FK >- chats.chat_id
-user_id serial FK >- users.user_id
+chat_id serial PK FK >- chats.chat_id
+user_id serial PK FK >- users.user_id
 
 roles
 ---
-id serial PK
-chat_id serial FK >- chats.chat_id
-user_id serial FK >- users.user_id
-role_type role_type_enum
+chat_id serial PK FK >- chats.chat_id
+user_id serial PK FK >- users.user_id
+role_type role_type_enum # Owner, Administrator, Participant
 
 messages
 ---
 message_id serial PK
 chat_id serial FK >- chats.chat_id
+created_at timestamp
+modified_at timestamp # выставляется триггером
 message_text text
 
 voices
@@ -48,14 +48,14 @@ voices
 voice_id serial PK
 message_id serial FK >- messages.message_id
 media_url text
-waveform varchar(255) # 63 csv значения
+waveform varchar(255) # csv значения, формируется триггером
 
 images
 ---
 image_id serial PK
 message_id serial FK >- messages.message_id
 media_url text
-preview text # base64 картинка для предпросмотра
+thumbnail text # base64 картинка для предпросмотра
 
 files
 ---
