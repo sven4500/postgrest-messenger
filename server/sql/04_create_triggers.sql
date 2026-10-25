@@ -98,3 +98,46 @@ begin
 	values (register.username, crypt(register.password, gen_salt('bf', 12)));
 end;
 $$;
+
+-- кодирование в base64url (base64 без '=' и переносов строк, '+/' заменены на '-_'),
+-- используется для формирования JWT-токена
+CREATE OR REPLACE FUNCTION BASE64URL_ENCODE (DATA BYTEA) RETURNS TEXT LANGUAGE SQL IMMUTABLE AS $$
+	select translate(encode(data, 'base64'), E'+/=\n', '-_');
+$$;
+
+-- JWT-токен подписанный HMAC SHA-256 (алгоритм HS256), который проверяет PostgREST
+-- https://datatracker.ietf.org/doc/html/rfc7519
+CREATE OR REPLACE FUNCTION SIGN_JWT (PAYLOAD JSON, SECRET TEXT) RETURNS TEXT LANGUAGE SQL IMMUTABLE
+SET
+	SEARCH_PATH = PUBLIC,
+	PG_TEMP AS $$
+	with parts as (
+		select base64url_encode(convert_to('{"alg":"HS256","typ":"JWT"}', 'utf8')) || '.' ||
+			base64url_encode(convert_to(payload::text, 'utf8')) as unsigned
+	)
+	select unsigned || '.' || base64url_encode(hmac(unsigned, secret, 'sha256')) from parts;
+$$;
+
+-- вход через rpc/login: проверяет пароль и возвращает JWT-токен с ролью WEB_USER,
+-- токен действует сутки, ключ подписи хранится в настройке БД app.jwt_secret
+CREATE OR REPLACE FUNCTION LOGIN (USERNAME TEXT, PASSWORD TEXT) RETURNS JSON LANGUAGE PLPGSQL SECURITY DEFINER
+SET
+	SEARCH_PATH = PUBLIC,
+	PG_TEMP AS $$
+declare
+	var_user users;
+begin
+	select * into var_user from users where users.username = login.username;
+	-- одинаковая ошибка для неизвестного пользователя и неверного пароля,
+	-- код 28P01 (invalid_password) PostgREST возвращает как HTTP 403
+	if not found or var_user.password <> crypt(login.password, var_user.password) then
+		raise exception 'Invalid username or password' using errcode = 'invalid_password';
+	end if;
+	return json_build_object('token', sign_jwt(json_build_object(
+		'role', 'web_user',
+		'user_id', var_user.user_id,
+		'username', var_user.username,
+		'exp', extract(epoch from now() + interval '1 day')::bigint
+	), current_setting('app.jwt_secret')));
+end;
+$$;

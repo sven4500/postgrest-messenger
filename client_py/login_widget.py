@@ -1,15 +1,14 @@
 from PyQt5.QtWidgets import (QWidget, QPushButton, QGridLayout, QHBoxLayout, QLabel, QLineEdit)
 from PyQt5 import QtCore
-from dao import Dao
 
 
 class LoginWidget(QWidget):
-    dao = Dao()
     login_success = QtCore.pyqtSignal()
     register_success = QtCore.pyqtSignal()
 
-    def __init__(self, parent):
+    def __init__(self, dao, parent):
         super().__init__(parent)
+        self.dao = dao
 
         username_label = QLabel('Username', self)
         self.username_edit = QLineEdit(self)
@@ -42,13 +41,14 @@ class LoginWidget(QWidget):
     def register(self):
         username = self.username_edit.text()
         password = self.password_edit.text()
-        if self.dao.register(username, password):
+        # после регистрации сразу войти, чтобы получить токен
+        if self.dao.register(username, password) and self.dao.login(username, password):
             self.register_success.emit()
 
     def login(self):
         username = self.username_edit.text()
         password = self.password_edit.text()
-        if self.dao.login(username, password) != 1:
+        if not self.dao.login(username, password):
             print('login failure')
             return
         print('login success')

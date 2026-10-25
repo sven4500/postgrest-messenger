@@ -2,30 +2,34 @@ import requests
 
 
 class Dao:
-    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IndlYl9hbm9uIiwiaWF0IjoxNTE2MjM5MDIyfQ.xhFiZIcrzvpp8-KEBt__YwVwkt7H3ypt_rgOQx38Bxk'
-    username = ''
+    url = 'http://localhost:3000'
 
     def __init__(self):
         super().__init__()
+        # JWT-токен выдаётся функцией rpc/login, без токена запросы выполняются от роли web_anon
+        self.token = None
+        self.username = ''
+
+    def headers(self):
+        if self.token is None:
+            return {}
+        return {"Authorization": "Bearer " + self.token}
 
     def register(self, username, password):
-        headers = {"Authorization": "Bearer " + self.token}
         try:
-            response = requests.post("http://localhost:3000/rpc/register", headers=headers,
+            response = requests.post(self.url + "/rpc/register",
                                      json={"username": username, "password": password})
             if not response.ok:
                 print(response.text)
                 return False
-            self.username = username
             return True
         except Exception as e:
             print(e)
             return False
 
     def list_users(self):
-        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + self.token}
         try:
-            response = requests.get("http://localhost:3000/users_public", headers=headers)
+            response = requests.get(self.url + "/users_public", headers=self.headers())
             print(response.json())
             return response.json()
         except Exception as e:
@@ -33,31 +37,37 @@ class Dao:
             return []
 
     def login(self, username, password):
-        # пока не используется
-        users_list = self.list_users()
-        for user in users_list:
-            if username == user['username']:
-                self.username = username
-                return True
-        return False
+        try:
+            response = requests.post(self.url + "/rpc/login",
+                                     json={"username": username, "password": password})
+            if not response.ok:
+                print(response.text)
+                return False
+            self.token = response.json()['token']
+            self.username = username
+            return True
+        except Exception as e:
+            print(e)
+            return False
 
     def send_message(self, chat_id, text):
-        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + self.token}
-        data = '{{"chat_id": "{0}", "message_text": "{1}"}}'.format(chat_id, text)
-        print(data)
         try:
-            response = requests.post("http://localhost:3000/messages_public", headers=headers, data=data)
-            print(response.json())
+            response = requests.post(self.url + "/messages_public", headers=self.headers(),
+                                     json={"chat_id": chat_id, "message_text": text})
+            if not response.ok:
+                print(response.text)
+                return False
             return True
         except Exception as e:
             print(e)
             return False
 
     def list_messages(self, chat_id):
-        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + self.token}
         try:
-            response = requests.get("http://localhost:3000/messages_public", headers=headers)
-            print(response.json())
+            response = requests.get(self.url + "/messages_public", headers=self.headers())
+            if not response.ok:
+                print(response.text)
+                return []
             return response.json()
         except Exception as e:
             print(e)

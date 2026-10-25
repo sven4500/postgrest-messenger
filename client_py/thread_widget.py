@@ -1,14 +1,13 @@
 from PyQt5.QtWidgets import (QWidget, QTextEdit, QGridLayout, QListWidget, QPushButton)
 from PyQt5.QtGui import (QColor, QPalette, QColorConstants)
-from dao import Dao
 
 
 class ThreadWidget(QWidget):
-    dao = Dao()
     chat_id = 1
 
-    def __init__(self, parent):
+    def __init__(self, dao, parent):
         super().__init__(parent)
+        self.dao = dao
 
         self.list_widget = QListWidget(self)
         self.populate_list()
